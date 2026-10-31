@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>SO Dashboard – HPCL LPG Vadodara</title>
+<style>
+:root{
+  --bg:#f3f5f8;--card:#fff;--fg:#17202e;--muted:#5b6678;--line:#dde3eb;--brand:#0b3d91;--brand-fg:#fff;
+  --soft:#eef3fb;--green:#137a3c;--green-bg:#e3f4ea;--amber:#8a5a00;--amber-bg:#fff2d6;--red:#b42318;--red-bg:#fde7e5;
+  --violet:#5b3cc4;--violet-bg:#efeafd;--teal:#0f6e66;--teal-bg:#e0f3f1;--grey-bg:#eceff3;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f141c;--card:#18202b;--fg:#e7ecf3;--muted:#9aa6b8;--line:#2a3544;--brand:#7aa7ff;--brand-fg:#0f141c;
+  --soft:#1d2836;--green:#6fd59a;--green-bg:#173225;--amber:#f2c063;--amber-bg:#3a2d10;--red:#ff8a80;--red-bg:#3d1c1a;
+  --violet:#b8a6ff;--violet-bg:#2a2347;--teal:#6fd3c8;--teal-bg:#123331;--grey-bg:#242e3b;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--brand)}
+.wrap{max-width:980px;margin:0 auto;padding:16px}
+header.bar{background:var(--brand);color:var(--brand-fg)}
+header.bar .wrap{display:flex;align-items:center;gap:12px;padding-top:12px;padding-bottom:12px}
+header.bar h1{font-size:17px;margin:0;flex:1}
+header.bar small{display:block;font-weight:400;opacity:.85;font-size:12.5px}
+.hbtn{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.muted{color:var(--muted)}.small{font-size:13px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-fg)}
+.btn.green{background:var(--green);border-color:var(--green);color:#fff}
+.btn.warn{color:var(--amber);border-color:var(--amber)}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+.login{max-width:380px;margin:48px auto}
+.login label{display:block;margin:12px 0}
+.login input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-top:4px}
+.err{color:var(--red);min-height:20px;margin:8px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:12px}
+.tile{text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.tile:hover{border-color:var(--brand)}
+.tile .n{font-size:30px;font-weight:700;line-height:1}
+.tile .t{font-weight:600}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.toolbar h2{margin:0;font-size:19px;flex:1 1 100%}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:var(--card);padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--brand);color:var(--brand-fg);font-weight:600}
+.search{flex:1;min-width:180px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:10px}
+.item.open{border-color:var(--brand)}
+.row{display:grid;grid-template-columns:96px 1fr auto;gap:4px 12px;align-items:center;width:100%;text-align:left;background:none;border:0;padding:12px 14px;cursor:pointer}
+.row .d{font-size:13px;color:var(--muted)}
+.row .who b{display:block}
+.row .meta{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.chip{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--grey-bg);white-space:nowrap}
+.c-green{background:var(--green-bg);color:var(--green)}.c-amber{background:var(--amber-bg);color:var(--amber)}
+.c-red{background:var(--red-bg);color:var(--red)}.c-violet{background:var(--violet-bg);color:var(--violet)}
+.c-teal{background:var(--teal-bg);color:var(--teal)}.c-brand{background:var(--soft);color:var(--brand)}
+.detail{border-top:1px solid var(--line);padding:14px}
+.sec{margin:0 0 14px}
+.sec h4{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.kv{display:grid;grid-template-columns:minmax(120px,38%) 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.kv>div{padding:6px 10px;border-top:1px solid var(--line);word-break:break-word}
+.kv>div:nth-child(-n+2){border-top:0}
+.kv .k{color:var(--muted);background:var(--soft);font-size:13.5px}
+.cp{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.copy{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:1px 7px;font-size:12px;cursor:pointer;flex:none}
+.copy.ok{color:var(--green);border-color:var(--green)}
+table.p{width:100%;border-collapse:collapse;font-size:14px}
+table.p th,table.p td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+table.p th{background:var(--soft);font-size:13px;color:var(--muted)}
+.docs{display:flex;flex-wrap:wrap;gap:8px}
+.docs a{border:1px solid var(--line);border-radius:8px;padding:6px 10px;text-decoration:none;font-size:14px;background:var(--soft)}
+pre.log{white-space:pre-wrap;margin:0;font:13px/1.5 ui-monospace,Consolas,monospace;background:var(--soft);padding:8px 10px;border-radius:8px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.empty{padding:28px;text-align:center}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
+.overlay.open{display:flex}
+.sheet{background:var(--card);border-radius:12px;padding:18px;max-width:460px;width:100%}
+.sheet textarea{width:100%;min-height:90px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:9px;display:none;z-index:10;max-width:90%}
+.spin{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.15);z-index:8}
+.spin.open{display:flex}.spin div{background:var(--card);padding:12px 18px;border-radius:10px;border:1px solid var(--line)}
+@media (max-width:560px){.row{grid-template-columns:1fr auto}.row .d{grid-column:1/-1}.kv{grid-template-columns:1fr}.kv .k{border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="overlay" id="ov"><div class="sheet" id="sheet"></div></div>
+<div class="spin" id="spin"><div id="spinMsg">Loading…</div></div>
+<div class="toast" id="toast"></div>
+<script>
+/* SO Dashboard – data comes from the Distributor Connect backend after Portal officer login.
+   No data, links or keys are stored in this page. */
+const API_URL='https://script.google.com/macros/s/AKfycbxCT6TIdb7_J7KDwdFtGyEc4bMsaxOaVnlaGr_8zPvZePmPdAN4931zBgiu1PXH8Q7Crg/exec';
+const TYPES=['DS','MDM','PNG','SV','UB','RC'];
+const ACTIONS={
+  DS:[['complete','Deseeded in CDCMS','green'],['modify','Send for modification','warn'],['already','Already deseeded','primary'],['reject','Reject','danger']],
+  _:[['process','Under process',''],['complete','Completed','green'],['modify','Send for modification','warn'],['hold','On hold',''],['reject','Reject','danger']]
+};
+const NEED_REMARKS={modify:'Remarks for the distributor (what to correct)',already:'Remarks',reject:'Reason for rejection',hold:'Reason for hold'};
+const DEFAULT_REMARK={already:'Already deseeded in CDCMS'};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token=null;try{token=sessionStorage.getItem('so_dash_token')}catch(e){}
+const st={view:'home',sum:null,type:null,data:null,tab:'pending',q:'',open:null,period:'90'};
+
+function setToken(t){token=t;try{t?sessionStorage.setItem('so_dash_token',t):sessionStorage.removeItem('so_dash_token')}catch(e){}}
+function toast(m,ms){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',ms||3500)}
+function spin(m){$('#spinMsg').textContent=m||'';$('#spin').classList.toggle('open',!!m)}
+function call(fn,...args){
+  return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn,args}),redirect:'follow'})
+    .then(r=>{if(!r.ok)throw new Error('Server did not respond ('+r.status+').');return r.json()},()=>{throw new Error('No connection. Check the internet and try again.')})
+    .then(j=>{if(j&&j.ok)return j.data;const m=String((j&&j.error)||'Something went wrong.').replace(/^(Exception|Error):\s*/,'');
+      if(/log in|session/i.test(m)){setToken(null);st.view='login'}throw new Error(m)});
+}
+async function run(msg,fn){spin(msg);try{return await fn()}catch(e){toast(e.message,6000);if(!token)render();throw e}finally{spin(null)}}
+
+/* ---------- views ---------- */
+function bar(){
+  const me=st.sum&&st.sum.me;
+  return `<header class="bar"><div class="wrap"><h1>SO Dashboard – HPCL LPG Vadodara${me?`<small>${esc(me.name)} · ${esc(me.sa)}${me.edit?'':' (view only)'}</small>`:''}</h1>
+  ${token?`<button class="hbtn" data-a="home">Home</button><button class="hbtn" data-a="refresh">Refresh</button><button class="hbtn" data-a="logout">Log out</button>`:''}</div></header>`;
+}
+function loginView(){
+  return bar()+`<div class="wrap"><form class="card login" id="loginForm"><h2 style="margin:0">Officer login</h2>
+  <p class="muted small">Use your Distributor Connect (Portal) officer email and password.</p>
+  <label>Email<input name="email" type="email" autocomplete="username" required></label>
+  <label>Password<input name="pwd" type="password" autocomplete="current-password" required></label>
+  <div class="err" id="loginErr"></div><button class="btn primary" style="width:100%">Log in</button></form></div>`;
+}
+function homeView(){
+  const s=st.sum;
+  const tiles=TYPES.map(k=>{const t=s.types[k]||{};return `<button class="card tile" data-a="open" data-v="${k}">
+    <span class="t">${esc(t.name||k)}</span><span class="n">${t.error?'–':t.pending}</span>
+    <span class="muted small">${t.error?esc(t.error):`pending${t.returned?` · ${t.returned} returned`:''}${t.pending?` · oldest ${t.oldest} d`:''}`}</span></button>`}).join('');
+  return bar()+`<div class="wrap"><div class="tiles">${tiles}
+    <a class="card tile" href="${esc(s.jobs)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="t">CDCMS Pending Jobs</span>
+    <span class="muted small">Google Sheet for the bookmark bot (Excel download in the Links tab)</span></a></div></div>`;
+}
+function statusChip(r){
+  const m={'Received':'c-brand','Edited by distributor':'c-teal','Under Process':'c-violet','Approved':'c-green','On Hold':'c-amber',
+    'Returned for modification':'c-amber','Completed':'c-green','Already deseeded':'c-green','Rejected':'c-red'};
+  return `<span class="chip ${m[r.status]||''}">${esc(r.status==='Edited by distributor'?'Edited':r.status)}</span>`;
+}
+function flagChip(f){
+  if(!f)return '';
+  const c=/^(OK|Match)/i.test(f)?'c-green':/not ok|mismatch|no pdf|not found/i.test(f)?'c-red':'c-amber';
+  return `<span class="chip ${c}">${esc(f.length>28?f.slice(0,28)+'…':f)}</span>`;
+}
+function filtered(){
+  const d=st.data,q=st.q.trim().toLowerCase(),cut=st.period==='all'?0:Date.now()-Number(st.period)*864e5;
+  let rows=d.rows.filter(r=>r.bucket===st.tab);
+  if(st.tab==='history'&&cut)rows=rows.filter(r=>{const p=(r.updated||r.date).split(/[- :]/);return new Date(p[2],p[1]-1,p[0])>=cut});
+  if(q)rows=rows.filter(r=>[r.id,r.code,r.dist,r.consNo,r.consName,r.remarks].join(' ').toLowerCase().includes(q));
+  return st.tab==='pending'?rows:rows.slice().reverse();
+}
+function cp(v){return `<div class="cp"><span>${esc(v)}</span>${v?`<button class="copy" data-copy="${esc(v)}">Copy</button>`:''}</div>`}
+function detail(r){
+  const t=st.data.type,acts=[];
+  if(st.data.edit){
+    if(r.bucket==='pending')(ACTIONS[t]||ACTIONS._).forEach(a=>acts.push(`<button class="btn ${a[2]}" data-act="${a[0]}">${a[1]}</button>`));
+    else acts.push(`<button class="btn" data-act="reopen">Reopen (back to pending)</button>`);
+  }
+  const base=[['Request ID',r.id],['Received on',r.date],['Distributor',r.code+' – '+r.dist],['Consumer No',r.consNo],['Consumer Name',r.consName]].concat(r.fields);
+  return `<div class="detail">
+  <div class="sec"><h4>Request</h4><div class="kv">${base.map(f=>`<div class="k">${esc(f[0])}</div><div>${cp(f[1])}</div>`).join('')}</div></div>
+  ${r.persons.length?`<div class="sec"><h4>Persons to be deseeded (${r.persons.length})</h4><table class="p"><tr><th>#</th><th>Name</th><th>Member Sl</th><th>Aadhaar</th><th>Card check</th></tr>
+    ${r.persons.map(p=>`<tr><td>${p.n}</td><td>${cp(p.name)}</td><td>${cp(p.serial)}</td><td>${cp(p.aadhaar)}</td><td>${esc(p.check)}</td></tr>`).join('')}</table></div>`:''}
+  ${r.docs.length?`<div class="sec"><h4>Documents</h4><div class="docs">${r.docs.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.label)}</a>`).join('')}</div>
+    <p class="muted small" style="margin:6px 0 0">Opens in Google Drive – be signed in to Google with an account that can see the form uploads.</p></div>`:''}
+  ${r.checks.length?`<div class="sec"><h4>Automatic checks</h4><div class="kv">${r.checks.map(f=>`<div class="k">${esc(f[0])}</div><div style="white-space:pre-wrap">${esc(f[1])}</div>`).join('')}</div></div>`:''}
+  <div class="sec"><h4>Status</h4><div class="kv"><div class="k">Status</div><div>${statusChip(r)}</div><div class="k">SO remarks</div><div>${esc(r.remarks)||'<span class="muted">–</span>'}</div>
+    <div class="k">Last updated</div><div>${esc(r.updated)||'–'}</div></div></div>
+  ${r.log?`<div class="sec"><h4>Log</h4><pre class="log">${esc(r.log)}</pre></div>`:''}
+  ${acts.length?`<div class="acts">${acts.join('')}</div>`:''}</div>`;
+}
+function typeView(){
+  const d=st.data,cnt=b=>d.rows.filter(r=>r.bucket===b).length,rows=filtered();
+  const tab=(k,l)=>`<button data-a="tab" data-v="${k}" aria-pressed="${st.tab===k}">${l} (${cnt(k)})</button>`;
+  const list=rows.map(r=>{const key=r.row+'|'+r.id,open=st.open===key;return `<div class="item${open?' open':''}">
+    <button class="row" data-row="${esc(key)}" aria-expanded="${open}"><span class="d">${esc(r.date.slice(0,10))}<br>${esc(r.id)}</span>
+    <span class="who"><b>${esc(r.consNo)} · ${esc(r.consName)}</b><span class="muted small">${esc(r.code)} – ${esc(r.dist)}</span></span>
+    <span class="meta">${statusChip(r)}${flagChip(r.flag)}${st.tab==='pending'&&r.days!==''?`<span class="muted small">${r.days} d</span>`:''}</span></button>
+    ${open?detail(r):''}</div>`}).join('');
+  return bar()+`<div class="wrap"><div class="toolbar"><h2>${esc(d.name)}</h2>
+    <div class="seg" role="group" aria-label="View">${tab('pending','Pending')}${tab('returned','Returned for modification')}${tab('history','History')}</div>
+    ${st.tab==='history'?`<select class="search" style="flex:0 0 auto" data-a="period"><option value="30"${st.period==='30'?' selected':''}>Last 30 days</option><option value="90"${st.period==='90'?' selected':''}>Last 90 days</option><option value="all"${st.period==='all'?' selected':''}>All</option></select>`:''}
+    <input class="search" id="q" type="search" placeholder="Search consumer no, name, distributor, Req ID" value="${esc(st.q)}"></div>
+    <div class="list">${list||`<div class="card empty muted">${st.tab==='pending'?'No pending requests.':'Nothing here.'}</div>`}</div></div>`;
+}
+function render(){
+  const a=$('#app');
+  if(!token)st.view='login';
+  a.innerHTML=st.view==='login'?loginView():st.view==='home'?homeView():typeView();
+}
+
+/* ---------- actions ---------- */
+async function loadHome(){st.sum=await run('Loading…',()=>call('dashSummary',token));st.view='home';render()}
+async function loadType(t){st.data=await run('Loading…',()=>call('dashList',token,t));st.type=t;st.view='type';render()}
+function askRemarks(act,label){
+  return new Promise(res=>{
+    const need=NEED_REMARKS[act];
+    $('#sheet').innerHTML=`<h3 style="margin-top:0">${esc(label)}</h3>${need?`<label class="small">${esc(need)}<textarea id="rm">${esc(DEFAULT_REMARK[act]||'')}</textarea></label>`
+      :`<p>Mark this request as <b>${esc(label)}</b>?</p><label class="small">Remarks (optional)<textarea id="rm"></textarea></label>`}
+      <div class="err" id="rmErr"></div><div class="acts" style="border:0;justify-content:flex-end"><button class="btn" id="rmNo">Cancel</button><button class="btn primary" id="rmYes">Confirm</button></div>`;
+    $('#ov').classList.add('open');setTimeout(()=>$('#rm').focus(),50);
+    const close=v=>{$('#ov').classList.remove('open');res(v)};
+    $('#rmNo').onclick=()=>close(null);
+    $('#rmYes').onclick=()=>{const v=$('#rm').value.trim();if(need&&!v){$('#rmErr').textContent='Please enter remarks.';return}close(v)};
+  });
+}
+document.addEventListener('click',async e=>{
+  const c=e.target.closest('[data-copy]');
+  if(c){const v=c.dataset.copy;try{await navigator.clipboard.writeText(v)}catch(x){const t=document.createElement('textarea');t.value=v;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}
+    c.textContent='Copied';c.classList.add('ok');setTimeout(()=>{c.textContent='Copy';c.classList.remove('ok')},1200);return}
+  const r=e.target.closest('[data-row]');
+  if(r){st.open=st.open===r.dataset.row?null:r.dataset.row;render();return}
+  const b=e.target.closest('[data-act]');
+  if(b){const key=st.open,row=st.data.rows.find(x=>x.row+'|'+x.id===key);if(!row)return;
+    const remarks=await askRemarks(b.dataset.act,b.textContent);if(remarks===null)return;
+    try{const res=await run('Saving…',()=>call('dashAct',token,st.type,row.row,row.id,b.dataset.act,remarks));
+      toast(row.consNo+' → '+res.status);st.open=null;await loadType(st.type)}catch(x){}return}
+  const a=e.target.closest('[data-a]');if(!a||a.tagName==='SELECT')return;
+  const k=a.dataset.a;
+  if(k==='home')loadHome().catch(()=>{});
+  else if(k==='refresh')(st.view==='type'?loadType(st.type):loadHome()).catch(()=>{});
+  else if(k==='open'){st.tab='pending';st.q='';st.open=null;loadType(a.dataset.v).catch(()=>{})}
+  else if(k==='tab'){st.tab=a.dataset.v;st.open=null;render()}
+  else if(k==='logout'){try{await call('dashLogout',token)}catch(x){}setToken(null);st.sum=null;render()}
+});
+document.addEventListener('change',e=>{if(e.target.dataset.a==='period'){st.period=e.target.value;render()}});
+document.addEventListener('input',e=>{if(e.target.id==='q'){st.q=e.target.value;const pos=e.target.selectionStart;render();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)}});
+document.addEventListener('submit',async e=>{
+  if(e.target.id!=='loginForm')return;e.preventDefault();
+  const f=new FormData(e.target);$('#loginErr').textContent='';
+  try{const res=await run('Logging in…',()=>call('loginOfficer',String(f.get('email')).trim(),f.get('pwd')));
+    if(res&&res.temp){$('#loginErr').textContent='Please log in to the Portal once and set your own password first.';return}
+    setToken(res.token);await loadHome()}
+  catch(x){if($('#loginErr'))$('#loginErr').textContent=x.message;setToken(null)}
+});
+render();if(token)loadHome().catch(()=>{});
+</script>
+</body>
+</html>
