@@ -79,7 +79,9 @@ pre.log{white-space:pre-wrap;margin:0;font:13px/1.5 ui-monospace,Consolas,monosp
 .empty{padding:28px;text-align:center}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
 .overlay.open{display:flex}
-.sheet{background:var(--card);border-radius:12px;padding:18px;max-width:460px;width:100%}
+.sheet{background:var(--card);border-radius:12px;padding:18px;max-width:520px;width:100%;max-height:92vh;overflow:auto}
+.mbox{max-height:132px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--card);margin-top:4px}
+.mbox label{display:block;padding:2px 0;cursor:pointer}
 .sheet textarea{width:100%;min-height:90px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:9px;display:none;z-index:10;max-width:90%}
 .spin{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.15);z-index:8}
@@ -208,6 +210,12 @@ function loadScript(u){return new Promise((res,rej)=>{if(document.querySelector(
   const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=()=>rej(new Error('Could not load the Excel/ZIP library. Check the internet.'));document.head.appendChild(s)})}
 const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const dmy=s=>s.split('-').reverse().join('-');
+function multiBox(id,label,items){
+  return `<div class="small" style="margin-top:10px">${esc(label)} <span class="muted" id="${id}Cnt">(all)</span> <span class="muted">– tick one or more</span>
+    <div class="mbox" id="${id}"><label><input type="checkbox" data-all checked> <b>All</b></label>
+    ${items.map(x=>`<label><input type="checkbox" value="${esc(x)}"> ${esc(x)}</label>`).join('')}</div></div>`;
+}
+const multiSel=id=>[...document.querySelectorAll('#'+id+' input:not([data-all]):checked')].map(i=>i.value);
 async function pngReportDialog(){
   const meta=await run('Loading CGD list…',()=>call('dashPngReport',token,{listOnly:true}));
   const now=new Date(),first=new Date(now.getFullYear(),now.getMonth(),1);
@@ -218,12 +226,19 @@ async function pngReportDialog(){
       <label class="small">Received to<input id="rTo" type="date" class="search" style="width:100%" value="${ymd(now)}"></label></div>
     <label class="small" style="display:block;margin-top:10px">CGD company<select id="rCgd" class="search" style="width:100%"><option value="">All CGDs (separate sheet for each)</option>
       ${meta.cgds.map(c=>`<option>${esc(c)}</option>`).join('')}</select></label>
+    ${multiBox('rDist','Distributor',meta.dists)}
+    ${multiBox('rDis','District',meta.districts)}
     <label class="small" style="display:block;margin-top:10px"><input id="rRej" type="checkbox"> Include rejected cases</label>
     <div class="err" id="rErr"></div><div class="acts" style="border:0;justify-content:flex-end"><button class="btn" id="rNo">Cancel</button><button class="btn primary" id="rGo">Download</button></div>`;
   $('#ov').classList.add('open');
+  $('#sheet').onchange=e=>{const box=e.target.closest('.mbox');if(!box)return;
+    const all=box.querySelector('[data-all]'),items=[...box.querySelectorAll('input:not([data-all])')];
+    if(e.target===all){if(all.checked)items.forEach(i=>i.checked=false);else all.checked=!items.some(i=>i.checked)}
+    else all.checked=!items.some(i=>i.checked);
+    const n=items.filter(i=>i.checked).length;$('#'+box.id+'Cnt').textContent=n?'('+n+' selected)':'(all)'};
   $('#rNo').onclick=()=>$('#ov').classList.remove('open');
   $('#rGo').onclick=async()=>{
-    const o={from:$('#rFrom').value,to:$('#rTo').value,cgd:$('#rCgd').value,includeRejected:$('#rRej').checked};
+    const o={from:$('#rFrom').value,to:$('#rTo').value,cgd:$('#rCgd').value,dists:multiSel('rDist'),districts:multiSel('rDis'),includeRejected:$('#rRej').checked};
     if(!o.from||!o.to||o.from>o.to){$('#rErr').textContent='Please choose a valid period.';return}
     $('#ov').classList.remove('open');
     try{await buildPngReport(o)}catch(e){}
@@ -231,7 +246,7 @@ async function pngReportDialog(){
 }
 async function buildPngReport(o){
   const res=await run('Collecting cases and slips…',()=>call('dashPngReport',token,o));
-  if(!res.rows.length){toast('No PNG cases in this period.');return}
+  if(!res.rows.length){toast('No PNG cases for this selection.');return}
   await run('Preparing Excel and ZIP…',async()=>{
     await loadScript(XLSX_URL);await loadScript(ZIP_URL);
     const wb=XLSX.utils.book_new(),names={};
@@ -246,7 +261,7 @@ async function buildPngReport(o){
     };
     if(o.cgd)add(o.cgd,res.rows);
     else{add('All',res.rows);[...new Set(res.rows.map(r=>r.cgd))].sort().forEach(c=>add(c,res.rows.filter(r=>r.cgd===c)))}
-    const tag=(o.cgd||'All_CGD').replace(/[^\w-]+/g,'_')+'_'+dmy(o.from)+'_to_'+dmy(o.to);
+    const tag=[o.cgd||'All_CGD',o.dists.length===1?o.dists[0].split('-')[0].trim():o.dists.length?o.dists.length+'_distributors':'',o.districts.length===1?o.districts[0]:o.districts.length?o.districts.length+'_districts':''].filter(Boolean).join('_').replace(/[^\w-]+/g,'_')+'_'+dmy(o.from)+'_to_'+dmy(o.to);
     const zip=new JSZip();
     zip.file('PNG_Registration_'+tag+'.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}));
     zip.file('READ ME.txt','Extract (unzip) this file first. Keep the Slips folder next to the Excel file - then clicking the Application Number or Slip name in Excel opens the PDF.\r\n');
