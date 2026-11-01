@@ -150,7 +150,7 @@ function loginView(){
   <div class="err" id="loginErr"></div><button class="btn primary" style="width:100%">Log in</button></form></div>`;
 }
 function homeView(){
-  const s=st.sum;
+  const s=st.sum;if(!s)return bar()+'<div class="wrap"><p class="muted">Loading…</p></div>';
   const tiles=TYPES.map(k=>{const t=s.types[k]||{};return `<button class="card tile" data-a="open" data-v="${k}">
     <span class="t">${esc(t.name||k)}</span><span class="n">${t.error?'–':t.pending}</span>
     <span class="muted small">${t.error?esc(t.error):`pending${t.returned?` · ${t.returned} returned`:''}${t.pending?` · oldest ${t.oldest} d`:''}`}</span></button>`}).join('');
