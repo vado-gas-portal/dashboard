@@ -24,6 +24,7 @@ header.bar{background:var(--brand);color:var(--brand-fg)}
 header.bar .wrap{display:flex;align-items:center;gap:12px;padding-top:12px;padding-bottom:12px}
 header.bar h1{font-size:17px;margin:0;flex:1}
 header.bar small{display:block;font-weight:400;opacity:.85;font-size:12.5px}
+#app.upd header.bar h1::after{content:'Updating…';display:inline-block;margin-left:10px;font-size:11.5px;font-weight:400;opacity:.8}
 .hbtn{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .muted{color:var(--muted)}.small{font-size:13px}
@@ -374,8 +375,25 @@ async function buildPngReport(o){
 }
 
 /* ---------- actions ---------- */
-async function loadHome(){st.sum=await run('Loading…',()=>call('dashSummary',token));st.view='home';render()}
-async function loadType(t){st.data=await run('Loading…',()=>call('dashList',token,t));st.type=t;st.view='type';render()}
+/* fast loading: show the last copy at once (this browser tab only), refresh quietly in the background */
+const CK='so_dash_c_';
+function cget(k){try{const v=sessionStorage.getItem(CK+k);return v?JSON.parse(v):null}catch(e){return null}}
+function cput(k,v){try{sessionStorage.setItem(CK+k,JSON.stringify(v))}catch(e){}}
+function cclear(){try{Object.keys(sessionStorage).filter(k=>k.indexOf(CK)===0).forEach(k=>sessionStorage.removeItem(k))}catch(e){}}
+function reRender(){const a=document.activeElement,id=a&&a.id,pos=a&&a.selectionStart;render();
+  if(id){const x=document.getElementById(id);if(x){x.focus();try{x.setSelectionRange(pos,pos)}catch(e){}}}}
+function quiet(fn,args,key,apply){$('#app').classList.add('upd');
+  call(fn,...args).then(d=>{cput(key,d);apply(d)}).catch(()=>{if(!token)render()}).finally(()=>$('#app').classList.remove('upd'))}
+async function loadHome(force){
+  const c=!force&&cget('home');
+  if(c){st.sum=c;st.view='home';render();
+    quiet('dashSummary',[token],'home',d=>{const ch=JSON.stringify(d)!==JSON.stringify(st.sum);st.sum=d;if(ch&&st.view==='home')reRender()});return}
+  st.sum=await run('Loading…',()=>call('dashSummary',token,!!force));cput('home',st.sum);st.view='home';render()}
+async function loadType(t,force){
+  const c=!force&&cget('list_'+t);
+  if(c){st.data=c;st.type=t;st.view='type';render();
+    quiet('dashList',[token,t],'list_'+t,d=>{if(st.view==='type'&&st.type===t){const ch=JSON.stringify(d)!==JSON.stringify(st.data);st.data=d;if(ch)reRender()}});return}
+  st.data=await run('Loading…',()=>call('dashList',token,t,!!force));cput('list_'+t,st.data);st.type=t;st.view='type';render()}
 function askRemarks(act,label){
   return new Promise(res=>{
     const need=NEED_REMARKS[act],quick=((QUICK[st.type]||{})[act])||[];
@@ -401,11 +419,14 @@ document.addEventListener('click',async e=>{
   if(b){const key=st.open,row=st.data.rows.find(x=>x.row+'|'+x.id===key);if(!row)return;
     const remarks=await askRemarks(b.dataset.act,b.textContent);if(remarks===null)return;
     try{const res=await run('Saving…',()=>call('dashAct',token,st.type,row.row,row.id,b.dataset.act,remarks));
-      toast(row.consNo+' → '+res.status);st.open=null;await loadType(st.type)}catch(x){}return}
+      const cur=(st.data.rows.find(x=>x.row===row.row&&x.id===row.id))||row;
+      [row,cur].forEach(o=>['status','bucket','remarks','updated','log'].forEach(k=>{if(res[k]!=null)o[k]=res[k]}));
+      cput('list_'+st.type,st.data);
+      toast(row.consNo+' → '+res.status);st.open=null;render()}catch(x){}return}
   const a=e.target.closest('[data-a]');if(!a||a.tagName==='SELECT')return;
   const k=a.dataset.a;
   if(k==='home')loadHome().catch(()=>{});
-  else if(k==='refresh')(st.view==='type'?loadType(st.type):st.view==='summary'?loadSummary():loadHome()).catch(()=>{});
+  else if(k==='refresh')(st.view==='type'?loadType(st.type,true):st.view==='summary'?loadSummary():loadHome(true)).catch(()=>{});
   else if(k==='open'){st.tab='pending';st.q='';st.open=null;loadType(a.dataset.v).catch(()=>{})}
   else if(k==='tab'){st.tab=a.dataset.v;st.open=null;render()}
   else if(k==='pngReport')pngReportDialog().catch(()=>{});
@@ -413,7 +434,7 @@ document.addEventListener('click',async e=>{
   else if(k==='summary')loadSummary().catch(()=>{});
   else if(k==='sumApply'){st.sf={from:$('#sFrom').value,to:$('#sTo').value,districts:multiSel('sDis'),dists:multiSel('sDist')};
     if(!st.sf.from||!st.sf.to||st.sf.from>st.sf.to){toast('Please choose a valid period.');return}loadSummary().catch(()=>{})}
-  else if(k==='logout'){try{await call('dashLogout',token)}catch(x){}setToken(null);st.sum=null;st.meta=null;st.sf=null;render()}
+  else if(k==='logout'){try{await call('dashLogout',token)}catch(x){}setToken(null);cclear();st.sum=null;st.meta=null;st.sf=null;render()}
 });
 document.addEventListener('change',e=>{if(e.target.dataset.a==='period'){st.period=e.target.value;render()}else if(e.target.closest('.mbox')&&!e.target.closest('#sheet'))mboxChange(e)});
 document.addEventListener('input',e=>{if(e.target.id==='q'){st.q=e.target.value;const pos=e.target.selectionStart;render();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)}});
@@ -422,7 +443,7 @@ document.addEventListener('submit',async e=>{
   const f=new FormData(e.target);$('#loginErr').textContent='';
   try{const res=await run('Logging in…',()=>call('loginOfficer',String(f.get('email')).trim(),f.get('pwd')));
     if(res&&res.temp){$('#loginErr').textContent='Please log in to the Portal once and set your own password first.';return}
-    setToken(res.token);await loadHome()}
+    setToken(res.token);cclear();await loadHome()}
   catch(x){if($('#loginErr'))$('#loginErr').textContent=x.message;setToken(null)}
 });
 render();if(token)loadHome().catch(()=>{});
