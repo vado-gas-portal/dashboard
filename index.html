@@ -239,6 +239,8 @@ async function buildPngReport(o){
       let n=String(name).replace(/[\\\/?*\[\]:]/g,' ').trim().slice(0,28)||'Sheet',k=2;while(names[n])n=n.slice(0,26)+' '+(k++);names[n]=1;
       const ws=XLSX.utils.aoa_to_sheet([PNG_HEAD].concat(list.map((r,i)=>[i+1,r.dist,r.code,r.consNo,r.consName,r.address,r.appNo,r.appDate,
         r.district,r.cgd,r.slip,r.reqId,r.received,r.status,r.nameCheck])));
+      list.forEach((r,i)=>{if(!res.slips[r.slip])return;            // link only slips that are in the ZIP
+        ['G','K'].forEach(c=>{const cell=ws[c+(i+2)];if(cell)cell.l={Target:'Slips/'+r.slip,Tooltip:'Open acknowledgement slip (PDF)'}})});
       ws['!cols']=[6,30,12,12,28,48,22,14,14,20,34,14,16,12,24].map(w=>({wch:w}));
       XLSX.utils.book_append_sheet(wb,ws,n);
     };
@@ -247,6 +249,7 @@ async function buildPngReport(o){
     const tag=(o.cgd||'All_CGD').replace(/[^\w-]+/g,'_')+'_'+dmy(o.from)+'_to_'+dmy(o.to);
     const zip=new JSZip();
     zip.file('PNG_Registration_'+tag+'.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+    zip.file('READ ME.txt','Extract (unzip) this file first. Keep the Slips folder next to the Excel file - then clicking the Application Number or Slip name in Excel opens the PDF.\r\n');
     const f=zip.folder('Slips');Object.keys(res.slips).forEach(n=>f.file(n,res.slips[n],{base64:true}));
     const blob=await zip.generateAsync({type:'blob'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='PNG_Registration_'+tag+'.zip';document.body.appendChild(a);a.click();
