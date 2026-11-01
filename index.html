@@ -82,6 +82,9 @@ pre.log{white-space:pre-wrap;margin:0;font:13px/1.5 ui-monospace,Consolas,monosp
 .sheet{background:var(--card);border-radius:12px;padding:18px;max-width:520px;width:100%;max-height:92vh;overflow:auto}
 .mbox{max-height:132px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--card);margin-top:4px}
 .mbox label{display:block;padding:2px 0;cursor:pointer}
+.qr{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}
+.qr button{text-align:left;border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:13.5px;line-height:1.35}
+.qr button:hover,.qr button.on{border-color:var(--brand);color:var(--brand)}
 .sheet textarea{width:100%;min-height:90px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:9px;display:none;z-index:10;max-width:90%}
 .spin{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.15);z-index:8}
@@ -105,6 +108,12 @@ const ACTIONS={
 };
 const NEED_REMARKS={modify:'Remarks for the distributor (what to correct)',already:'Remarks',reject:'Reason for rejection',hold:'Reason for hold'};
 const DEFAULT_REMARK={already:'Already deseeded in CDCMS'};
+const QR_PNG={
+  a:'Connection unblocked on the basis of the PNG application details submitted. The details will be verified, and further action will be taken if required.',
+  b:'Request rejected, as the PNG application details have not been provided.',
+  c:'Please resubmit the request with the correct PNG application details and acknowledgement slip.',
+  d:'The PNG registration pertains to a different address and does not match the address of the LPG consumer.'};
+const QUICK={PNG:{complete:[QR_PNG.a],reject:[QR_PNG.b,QR_PNG.d],modify:[QR_PNG.c,QR_PNG.d]}};   // standard remarks per action
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let token=null;try{token=sessionStorage.getItem('so_dash_token')}catch(e){}
@@ -205,7 +214,7 @@ function render(){
 const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 const ZIP_URL='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
 const PNG_HEAD=['Sl No','Name of Distributor','Distributor Code','Consumer No','Name of Consumer','Consumer Address','PNG Application Number',
-  'Date of Application','District Name','CGD Company','Acknowledgement Slip (PDF in Slips folder)','Request ID','Received on','Status','Name check (slip vs form)'];
+  'Date of Application','District Name','CGD Company','Acknowledgement Slip (PDF in Slips folder)'];
 function loadScript(u){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${u}"]`))return res();
   const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=()=>rej(new Error('Could not load the Excel/ZIP library. Check the internet.'));document.head.appendChild(s)})}
 const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -253,10 +262,10 @@ async function buildPngReport(o){
     const add=(name,list)=>{
       let n=String(name).replace(/[\\\/?*\[\]:]/g,' ').trim().slice(0,28)||'Sheet',k=2;while(names[n])n=n.slice(0,26)+' '+(k++);names[n]=1;
       const ws=XLSX.utils.aoa_to_sheet([PNG_HEAD].concat(list.map((r,i)=>[i+1,r.dist,r.code,r.consNo,r.consName,r.address,r.appNo,r.appDate,
-        r.district,r.cgd,r.slip,r.reqId,r.received,r.status,r.nameCheck])));
+        r.district,r.cgd,r.slip])));
       list.forEach((r,i)=>{if(!res.slips[r.slip])return;            // link only slips that are in the ZIP
         ['G','K'].forEach(c=>{const cell=ws[c+(i+2)];if(cell)cell.l={Target:'Slips/'+r.slip,Tooltip:'Open acknowledgement slip (PDF)'}})});
-      ws['!cols']=[6,30,12,12,28,48,22,14,14,20,34,14,16,12,24].map(w=>({wch:w}));
+      ws['!cols']=[6,30,12,12,28,48,22,14,14,20,34].map(w=>({wch:w}));
       XLSX.utils.book_append_sheet(wb,ws,n);
     };
     if(o.cgd)add(o.cgd,res.rows);
@@ -278,13 +287,16 @@ async function loadHome(){st.sum=await run('Loading…',()=>call('dashSummary',t
 async function loadType(t){st.data=await run('Loading…',()=>call('dashList',token,t));st.type=t;st.view='type';render()}
 function askRemarks(act,label){
   return new Promise(res=>{
-    const need=NEED_REMARKS[act];
-    $('#sheet').innerHTML=`<h3 style="margin-top:0">${esc(label)}</h3>${need?`<label class="small">${esc(need)}<textarea id="rm">${esc(DEFAULT_REMARK[act]||'')}</textarea></label>`
+    const need=NEED_REMARKS[act],quick=((QUICK[st.type]||{})[act])||[];
+    $('#sheet').innerHTML=`<h3 style="margin-top:0">${esc(label)}</h3>${quick.length?`<div class="small muted">Standard remark (click to use, then edit if needed)</div>
+      <div class="qr">${quick.map((q,i)=>`<button type="button" data-qr="${i}">${esc(q)}</button>`).join('')}</div>`:''}${need?`<label class="small">${esc(need)}<textarea id="rm">${esc(DEFAULT_REMARK[act]||'')}</textarea></label>`
       :`<p>Mark this request as <b>${esc(label)}</b>?</p><label class="small">Remarks (optional)<textarea id="rm"></textarea></label>`}
       <div class="err" id="rmErr"></div><div class="acts" style="border:0;justify-content:flex-end"><button class="btn" id="rmNo">Cancel</button><button class="btn primary" id="rmYes">Confirm</button></div>`;
     $('#ov').classList.add('open');setTimeout(()=>$('#rm').focus(),50);
     const close=v=>{$('#ov').classList.remove('open');res(v)};
     $('#rmNo').onclick=()=>close(null);
+    document.querySelectorAll('[data-qr]').forEach(b=>b.onclick=()=>{$('#rm').value=quick[b.dataset.qr];
+      document.querySelectorAll('[data-qr]').forEach(x=>x.classList.toggle('on',x===b));$('#rmErr').textContent='';$('#rm').focus()});
     $('#rmYes').onclick=()=>{const v=$('#rm').value.trim();if(need&&!v){$('#rmErr').textContent='Please enter remarks.';return}close(v)};
   });
 }
