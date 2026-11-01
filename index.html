@@ -189,6 +189,7 @@ function typeView(){
   return bar()+`<div class="wrap"><div class="toolbar"><h2>${esc(d.name)}</h2>
     <div class="seg" role="group" aria-label="View">${tab('pending','Pending')}${tab('returned','Returned for modification')}${tab('history','History')}</div>
     ${st.tab==='history'?`<select class="search" style="flex:0 0 auto" data-a="period"><option value="30"${st.period==='30'?' selected':''}>Last 30 days</option><option value="90"${st.period==='90'?' selected':''}>Last 90 days</option><option value="all"${st.period==='all'?' selected':''}>All</option></select>`:''}
+    ${d.type==='PNG'?`<button class="btn" data-a="pngReport">CGD report (Excel + slips)</button>`:''}
     <input class="search" id="q" type="search" placeholder="Search consumer no, name, distributor, Req ID" value="${esc(st.q)}"></div>
     <div class="list">${list||`<div class="card empty muted">${st.tab==='pending'?'No pending requests.':'Nothing here.'}</div>`}</div></div>`;
 }
@@ -196,6 +197,62 @@ function render(){
   const a=$('#app');
   if(!token)st.view='login';
   a.innerHTML=st.view==='login'?loginView():st.view==='home'?homeView():typeView();
+}
+
+/* ---------- PNG CGD report (Excel + slip PDFs in one ZIP) ---------- */
+const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const ZIP_URL='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+const PNG_HEAD=['Sl No','Name of Distributor','Distributor Code','Consumer No','Name of Consumer','Consumer Address','PNG Application Number',
+  'Date of Application','District Name','CGD Company','Acknowledgement Slip (PDF in Slips folder)','Request ID','Received on','Status','Name check (slip vs form)'];
+function loadScript(u){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${u}"]`))return res();
+  const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=()=>rej(new Error('Could not load the Excel/ZIP library. Check the internet.'));document.head.appendChild(s)})}
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const dmy=s=>s.split('-').reverse().join('-');
+async function pngReportDialog(){
+  const meta=await run('Loading CGD list…',()=>call('dashPngReport',token,{listOnly:true}));
+  const now=new Date(),first=new Date(now.getFullYear(),now.getMonth(),1);
+  $('#sheet').innerHTML=`<h3 style="margin-top:0">PNG Registration – CGD report</h3>
+    <p class="muted small" style="margin-top:0">One ZIP: Excel (one sheet per CGD) + all acknowledgement slips as PDF.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label class="small">Received from<input id="rFrom" type="date" class="search" style="width:100%" value="${ymd(first)}"></label>
+      <label class="small">Received to<input id="rTo" type="date" class="search" style="width:100%" value="${ymd(now)}"></label></div>
+    <label class="small" style="display:block;margin-top:10px">CGD company<select id="rCgd" class="search" style="width:100%"><option value="">All CGDs (separate sheet for each)</option>
+      ${meta.cgds.map(c=>`<option>${esc(c)}</option>`).join('')}</select></label>
+    <label class="small" style="display:block;margin-top:10px"><input id="rRej" type="checkbox"> Include rejected cases</label>
+    <div class="err" id="rErr"></div><div class="acts" style="border:0;justify-content:flex-end"><button class="btn" id="rNo">Cancel</button><button class="btn primary" id="rGo">Download</button></div>`;
+  $('#ov').classList.add('open');
+  $('#rNo').onclick=()=>$('#ov').classList.remove('open');
+  $('#rGo').onclick=async()=>{
+    const o={from:$('#rFrom').value,to:$('#rTo').value,cgd:$('#rCgd').value,includeRejected:$('#rRej').checked};
+    if(!o.from||!o.to||o.from>o.to){$('#rErr').textContent='Please choose a valid period.';return}
+    $('#ov').classList.remove('open');
+    try{await buildPngReport(o)}catch(e){}
+  };
+}
+async function buildPngReport(o){
+  const res=await run('Collecting cases and slips…',()=>call('dashPngReport',token,o));
+  if(!res.rows.length){toast('No PNG cases in this period.');return}
+  await run('Preparing Excel and ZIP…',async()=>{
+    await loadScript(XLSX_URL);await loadScript(ZIP_URL);
+    const wb=XLSX.utils.book_new(),names={};
+    const add=(name,list)=>{
+      let n=String(name).replace(/[\\\/?*\[\]:]/g,' ').trim().slice(0,28)||'Sheet',k=2;while(names[n])n=n.slice(0,26)+' '+(k++);names[n]=1;
+      const ws=XLSX.utils.aoa_to_sheet([PNG_HEAD].concat(list.map((r,i)=>[i+1,r.dist,r.code,r.consNo,r.consName,r.address,r.appNo,r.appDate,
+        r.district,r.cgd,r.slip,r.reqId,r.received,r.status,r.nameCheck])));
+      ws['!cols']=[6,30,12,12,28,48,22,14,14,20,34,14,16,12,24].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb,ws,n);
+    };
+    if(o.cgd)add(o.cgd,res.rows);
+    else{add('All',res.rows);[...new Set(res.rows.map(r=>r.cgd))].sort().forEach(c=>add(c,res.rows.filter(r=>r.cgd===c)))}
+    const tag=(o.cgd||'All_CGD').replace(/[^\w-]+/g,'_')+'_'+dmy(o.from)+'_to_'+dmy(o.to);
+    const zip=new JSZip();
+    zip.file('PNG_Registration_'+tag+'.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+    const f=zip.folder('Slips');Object.keys(res.slips).forEach(n=>f.file(n,res.slips[n],{base64:true}));
+    const blob=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='PNG_Registration_'+tag+'.zip';document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+  });
+  toast(res.rows.length+' case'+(res.rows.length>1?'s':'')+' downloaded with '+Object.keys(res.slips).length+' slip PDF(s).',5000);
 }
 
 /* ---------- actions ---------- */
@@ -230,6 +287,7 @@ document.addEventListener('click',async e=>{
   else if(k==='refresh')(st.view==='type'?loadType(st.type):loadHome()).catch(()=>{});
   else if(k==='open'){st.tab='pending';st.q='';st.open=null;loadType(a.dataset.v).catch(()=>{})}
   else if(k==='tab'){st.tab=a.dataset.v;st.open=null;render()}
+  else if(k==='pngReport')pngReportDialog().catch(()=>{});
   else if(k==='logout'){try{await call('dashLogout',token)}catch(x){}setToken(null);st.sum=null;render()}
 });
 document.addEventListener('change',e=>{if(e.target.dataset.a==='period'){st.period=e.target.value;render()}});
