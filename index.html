@@ -82,6 +82,11 @@ pre.log{white-space:pre-wrap;margin:0;font:13px/1.5 ui-monospace,Consolas,monosp
 .sheet{background:var(--card);border-radius:12px;padding:18px;max-width:520px;width:100%;max-height:92vh;overflow:auto}
 .mbox{max-height:132px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--card);margin-top:4px}
 .mbox label{display:block;padding:2px 0;cursor:pointer}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}@media (max-width:560px){.sgrid{grid-template-columns:1fr}}
+.sbar{display:flex;height:12px;background:var(--grey-bg);border-radius:6px;overflow:hidden}.sbar span{display:block;height:100%}
+table.stab td:not(:first-child),table.stab th:not(:first-child){text-align:center}table.stab tr.tot td{font-weight:700;background:var(--soft)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin:0 4px 0 10px;vertical-align:-1px}
+.tile.sum{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between;background:var(--soft)}
 .qr{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}
 .qr button{text-align:left;border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:13.5px;line-height:1.35}
 .qr button:hover,.qr button.on{border-color:var(--brand);color:var(--brand)}
@@ -94,7 +99,7 @@ pre.log{white-space:pre-wrap;margin:0;font:13px/1.5 ui-monospace,Consolas,monosp
 </head>
 <body>
 <div id="app"></div>
-<div class="overlay" id="ov"><div class="sheet" id="sheet"></div></div>
+<div class="overlay" id="ov"><div class="sheet" id="sheet" onchange="mboxChange(event)"></div></div>
 <div class="spin" id="spin"><div id="spinMsg">Loading…</div></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -148,7 +153,8 @@ function homeView(){
   const tiles=TYPES.map(k=>{const t=s.types[k]||{};return `<button class="card tile" data-a="open" data-v="${k}">
     <span class="t">${esc(t.name||k)}</span><span class="n">${t.error?'–':t.pending}</span>
     <span class="muted small">${t.error?esc(t.error):`pending${t.returned?` · ${t.returned} returned`:''}${t.pending?` · oldest ${t.oldest} d`:''}`}</span></button>`}).join('');
-  return bar()+`<div class="wrap"><div class="tiles">${tiles}
+  return bar()+`<div class="wrap"><div class="tiles"><button class="card tile sum" data-a="summary"><span><span class="t" style="font-size:17px">Summary</span><br>
+    <span class="muted small">Requests received and processed in each category – filter by period, district and distributor</span></span><span class="btn primary">Open</span></button>${tiles}
     <a class="card tile" href="${esc(s.jobs)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="t">CDCMS Pending Jobs</span>
     <span class="muted small">Google Sheet for the bookmark bot (Excel download in the Links tab)</span></a></div></div>`;
 }
@@ -201,13 +207,14 @@ function typeView(){
     <div class="seg" role="group" aria-label="View">${tab('pending','Pending')}${tab('returned','Returned for modification')}${tab('history','History')}</div>
     ${st.tab==='history'?`<select class="search" style="flex:0 0 auto" data-a="period"><option value="30"${st.period==='30'?' selected':''}>Last 30 days</option><option value="90"${st.period==='90'?' selected':''}>Last 90 days</option><option value="all"${st.period==='all'?' selected':''}>All</option></select>`:''}
     ${d.type==='PNG'?`<button class="btn" data-a="pngReport">CGD report (Excel + slips)</button>`:''}
+    ${d.type==='DS'?`<button class="btn" data-a="dsReport">Download report (Excel + files)</button>`:''}
     <input class="search" id="q" type="search" placeholder="Search consumer no, name, distributor, Req ID" value="${esc(st.q)}"></div>
     <div class="list">${list||`<div class="card empty muted">${st.tab==='pending'?'No pending requests.':'Nothing here.'}</div>`}</div></div>`;
 }
 function render(){
   const a=$('#app');
   if(!token)st.view='login';
-  a.innerHTML=st.view==='login'?loginView():st.view==='home'?homeView():typeView();
+  a.innerHTML=st.view==='login'?loginView():st.view==='home'?homeView():st.view==='summary'?summaryView():typeView();
 }
 
 /* ---------- PNG CGD report (Excel + slip PDFs in one ZIP) ---------- */
@@ -219,10 +226,99 @@ function loadScript(u){return new Promise((res,rej)=>{if(document.querySelector(
   const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=()=>rej(new Error('Could not load the Excel/ZIP library. Check the internet.'));document.head.appendChild(s)})}
 const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const dmy=s=>s.split('-').reverse().join('-');
-function multiBox(id,label,items){
-  return `<div class="small" style="margin-top:10px">${esc(label)} <span class="muted" id="${id}Cnt">(all)</span> <span class="muted">– tick one or more</span>
-    <div class="mbox" id="${id}"><label><input type="checkbox" data-all checked> <b>All</b></label>
-    ${items.map(x=>`<label><input type="checkbox" value="${esc(x)}"> ${esc(x)}</label>`).join('')}</div></div>`;
+function multiBox(id,label,items,sel){
+  sel=sel||[];
+  return `<div class="small" style="margin-top:10px">${esc(label)} <span class="muted" id="${id}Cnt">${sel.length?'('+sel.length+' selected)':'(all)'}</span> <span class="muted">– tick one or more</span>
+    <div class="mbox" id="${id}"><label><input type="checkbox" data-all${sel.length?'':' checked'}> <b>All</b></label>
+    ${items.map(x=>{const v=typeof x==='string'?x:x.v,t=typeof x==='string'?x:x.t;
+      return `<label><input type="checkbox" value="${esc(v)}"${sel.indexOf(v)>-1?' checked':''}> ${esc(t)}</label>`}).join('')}</div></div>`;
+}
+function mboxChange(e){const box=e.target.closest('.mbox');if(!box)return;
+  const all=box.querySelector('[data-all]'),items=[...box.querySelectorAll('input:not([data-all])')];
+  if(e.target===all){if(all.checked)items.forEach(i=>i.checked=false);else all.checked=!items.some(i=>i.checked)}
+  else all.checked=!items.some(i=>i.checked);
+  const n=items.filter(i=>i.checked).length,c=document.getElementById(box.id+'Cnt');if(c)c.textContent=n?'('+n+' selected)':'(all)'}
+const distItems=()=>st.meta.dists.map(d=>({v:d.code,t:d.code+' – '+d.name+' ('+d.district+')'}));
+async function needMeta(){if(!st.meta)st.meta=await run('Loading lists…',()=>call('dashMeta',token));return st.meta}
+const fyStart=()=>{const n=new Date();return ymd(new Date(n.getMonth()<3?n.getFullYear()-1:n.getFullYear(),3,1))};
+
+/* ---------- Summary ---------- */
+async function loadSummary(){
+  await needMeta();
+  if(!st.sf)st.sf={from:fyStart(),to:ymd(new Date()),districts:[],dists:[]};
+  st.stats=await run('Loading summary…',()=>call('dashStats',token,st.sf));st.view='summary';render();
+}
+function summaryView(){
+  const f=st.sf,rows=st.stats||[],tot={received:0,processed:0,rejected:0,pending:0,returned:0};
+  rows.forEach(r=>Object.keys(tot).forEach(k=>tot[k]+=r[k]||0));
+  const max=Math.max(1,...rows.map(r=>r.received));
+  const pbar=r=>{const w=k=>(100*(r[k]||0)/max).toFixed(1)+'%';return `<div class="sbar" title="Processed ${r.processed}, Rejected ${r.rejected}, Returned ${r.returned}, Pending ${r.pending}">
+    <span style="width:${w('processed')};background:var(--green)"></span><span style="width:${w('rejected')};background:var(--red)"></span>
+    <span style="width:${w('returned')};background:var(--amber)"></span><span style="width:${w('pending')};background:var(--muted)"></span></div>`};
+  return bar()+`<div class="wrap"><div class="toolbar"><h2>Summary</h2></div>
+  <div class="card"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <label class="small">Received from<input id="sFrom" type="date" class="search" style="width:100%" value="${esc(f.from)}"></label>
+    <label class="small">Received to<input id="sTo" type="date" class="search" style="width:100%" value="${esc(f.to)}"></label></div>
+    <div class="sgrid">${multiBox('sDis','District',st.meta.districts,f.districts)}${multiBox('sDist','Distributor',distItems(),f.dists)}</div>
+    <div class="acts" style="border:0;justify-content:flex-end"><button class="btn primary" data-a="sumApply">Apply filters</button></div></div>
+  <div class="card" style="margin-top:12px;overflow-x:auto"><table class="p stab"><tr><th>Category</th><th>Received</th><th>Processed</th><th>Rejected</th><th>Returned for modification</th><th>Pending</th><th style="width:28%">Progress</th></tr>
+    ${rows.map(r=>`<tr><td>${esc(r.name)}${r.error?` <span class="muted small">(${esc(r.error)})</span>`:''}</td><td>${r.received}</td><td>${r.processed}</td><td>${r.rejected}</td><td>${r.returned}</td><td><b>${r.pending}</b></td><td>${pbar(r)}</td></tr>`).join('')}
+    <tr class="tot"><td>Total</td><td>${tot.received}</td><td>${tot.processed}</td><td>${tot.rejected}</td><td>${tot.returned}</td><td>${tot.pending}</td><td></td></tr></table>
+    <p class="muted small" style="margin:8px 0 0"><span class="dot" style="background:var(--green)"></span>Processed (completed / already deseeded) <span class="dot" style="background:var(--red)"></span>Rejected
+      <span class="dot" style="background:var(--amber)"></span>Returned <span class="dot" style="background:var(--muted)"></span>Pending · counts by date received; district as per Distributor_DB.</p></div></div>`;
+}
+
+/* ---------- Aadhaar Deseed report (Excel + attached files) ---------- */
+async function dsReportDialog(){
+  const m=await needMeta(),now=new Date(),first=new Date(now.getFullYear(),now.getMonth(),1);
+  $('#sheet').innerHTML=`<h3 style="margin-top:0">Aadhaar Deseed – download report</h3>
+    <p class="muted small" style="margin-top:0">One ZIP: Excel (Requests + Persons) and the attached files, linked from the Excel.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label class="small">Received from<input id="dFrom" type="date" class="search" style="width:100%" value="${ymd(first)}"></label>
+      <label class="small">Received to<input id="dTo" type="date" class="search" style="width:100%" value="${ymd(now)}"></label></div>
+    ${multiBox('dDis','District',m.districts)}${multiBox('dDist','Distributor',distItems())}${multiBox('dSt','Status',m.statuses)}
+    <label class="small" style="display:block;margin-top:10px"><input id="dFiles" type="checkbox" checked> Include attached files (ration cards, Aadhaar copies, screenshots)</label>
+    <div class="err" id="dErr"></div><div class="acts" style="border:0;justify-content:flex-end"><button class="btn" id="dNo">Cancel</button><button class="btn primary" id="dGo">Download</button></div>`;
+  $('#ov').classList.add('open');
+  $('#dNo').onclick=()=>$('#ov').classList.remove('open');
+  $('#dGo').onclick=async()=>{
+    const o={from:$('#dFrom').value,to:$('#dTo').value,districts:multiSel('dDis'),dists:multiSel('dDist'),statuses:multiSel('dSt'),files:$('#dFiles').checked};
+    if(!o.from||!o.to||o.from>o.to){$('#dErr').textContent='Please choose a valid period.';return}
+    $('#ov').classList.remove('open');
+    try{await buildDsReport(o)}catch(e){}
+  };
+}
+async function buildDsReport(o){
+  const res=await run(o.files?'Collecting requests and files…':'Collecting requests…',()=>call('dashDsReport',token,o));
+  if(!res.rows.length){toast('No Aadhaar Deseed requests for this selection.');return}
+  await run('Preparing Excel and ZIP…',async()=>{
+    await loadScript(XLSX_URL);await loadScript(ZIP_URL);
+    const DOCS=[['New_RC','New RC copy'],['Old_RC','Old RC copy'],['Aadhaar','Aadhaar copy'],['CDCMS_Screenshot','CDCMS screenshot'],['Correct_Aadhaar','Correct Aadhaar']];
+    const head=['Sl','Request ID','Received on','District','Distributor Code','Distributor','Consumer No','Consumer Name','Old RC No','New RC No','RC in CDCMS',
+      'Reason','Other details','Persons','Status','SO Remarks','Last Updated'].concat(DOCS.map(d=>d[1]),['Folder']);
+    const base=n=>n.split('/').pop();
+    const aoa=[head].concat(res.rows.map((r,i)=>[i+1,r.id,r.received,r.district,r.code,r.dist,r.consNo,r.consName,r.oldRc,r.newRc,r.rcCdcms,r.reason,r.other,
+      r.persons,r.status,r.remarks,r.updated].concat(DOCS.map(d=>{const l=r.docs[d[0]]||[];return l.length?base(l[0])+(l.length>1?' (+'+(l.length-1)+' more in folder)':''):''}),
+      [Object.values(r.docs).some(l=>l.length)?'Open folder':''])));
+    const ws=XLSX.utils.aoa_to_sheet(aoa),c0=17;
+    res.rows.forEach((r,i)=>{
+      DOCS.forEach((d,j)=>{const l=r.docs[d[0]]||[];if(l.length&&o.files){const a=XLSX.utils.encode_cell({r:i+1,c:c0+j});if(ws[a])ws[a].l={Target:l[0],Tooltip:'Open '+d[1]}}});
+      const a=XLSX.utils.encode_cell({r:i+1,c:c0+DOCS.length});if(o.files&&ws[a]&&ws[a].v)ws[a].l={Target:'Files/'+r.id.replace(/[^\w-]+/g,'_')+'/',Tooltip:'Open folder of this request'};
+    });
+    ws['!cols']=[5,14,16,12,11,28,11,26,18,18,14,18,24,8,14,28,16,22,22,22,20,18,12].map(w=>({wch:w}));
+    const wp=XLSX.utils.aoa_to_sheet([['Sl','Request ID','Distributor Code','Distributor','Consumer No','Consumer Name','New RC No','Person #','Name','Member Sl (old card)','Aadhaar (digits)','Reason','Status']]
+      .concat(res.persons.map((p,i)=>[i+1,p.id,p.code,p.dist,p.consNo,p.consName,p.newRc,p.n,p.name,p.serial,p.aadhaar,p.reason,p.status])));
+    wp['!cols']=[5,14,11,28,11,26,18,8,26,14,12,18,14].map(w=>({wch:w}));
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Requests');XLSX.utils.book_append_sheet(wb,wp,'Persons');
+    const tag=dmy(o.from)+'_to_'+dmy(o.to),zip=new JSZip();
+    zip.file('Aadhaar_Deseed_Report_'+tag+'.xlsx',XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+    if(o.files){zip.file('READ ME.txt','Extract (unzip) this file first. Keep the Files folder next to the Excel file - then clicking a file name or "Open folder" in Excel opens the attachment.\r\n');
+      Object.keys(res.files).forEach(n=>zip.file(n,res.files[n],{base64:true}))}
+    const blob=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Aadhaar_Deseed_Report_'+tag+'.zip';document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+  });
+  toast(res.rows.length+' request(s), '+res.persons.length+' person(s)'+(o.files?', '+Object.keys(res.files).length+' file(s)':'')+' downloaded.',5000);
 }
 const multiSel=id=>[...document.querySelectorAll('#'+id+' input:not([data-all]):checked')].map(i=>i.value);
 async function pngReportDialog(){
@@ -240,11 +336,6 @@ async function pngReportDialog(){
     <label class="small" style="display:block;margin-top:10px"><input id="rRej" type="checkbox"> Include rejected cases</label>
     <div class="err" id="rErr"></div><div class="acts" style="border:0;justify-content:flex-end"><button class="btn" id="rNo">Cancel</button><button class="btn primary" id="rGo">Download</button></div>`;
   $('#ov').classList.add('open');
-  $('#sheet').onchange=e=>{const box=e.target.closest('.mbox');if(!box)return;
-    const all=box.querySelector('[data-all]'),items=[...box.querySelectorAll('input:not([data-all])')];
-    if(e.target===all){if(all.checked)items.forEach(i=>i.checked=false);else all.checked=!items.some(i=>i.checked)}
-    else all.checked=!items.some(i=>i.checked);
-    const n=items.filter(i=>i.checked).length;$('#'+box.id+'Cnt').textContent=n?'('+n+' selected)':'(all)'};
   $('#rNo').onclick=()=>$('#ov').classList.remove('open');
   $('#rGo').onclick=async()=>{
     const o={from:$('#rFrom').value,to:$('#rTo').value,cgd:$('#rCgd').value,dists:multiSel('rDist'),districts:multiSel('rDis'),includeRejected:$('#rRej').checked};
@@ -314,13 +405,17 @@ document.addEventListener('click',async e=>{
   const a=e.target.closest('[data-a]');if(!a||a.tagName==='SELECT')return;
   const k=a.dataset.a;
   if(k==='home')loadHome().catch(()=>{});
-  else if(k==='refresh')(st.view==='type'?loadType(st.type):loadHome()).catch(()=>{});
+  else if(k==='refresh')(st.view==='type'?loadType(st.type):st.view==='summary'?loadSummary():loadHome()).catch(()=>{});
   else if(k==='open'){st.tab='pending';st.q='';st.open=null;loadType(a.dataset.v).catch(()=>{})}
   else if(k==='tab'){st.tab=a.dataset.v;st.open=null;render()}
   else if(k==='pngReport')pngReportDialog().catch(()=>{});
-  else if(k==='logout'){try{await call('dashLogout',token)}catch(x){}setToken(null);st.sum=null;render()}
+  else if(k==='dsReport')dsReportDialog().catch(()=>{});
+  else if(k==='summary')loadSummary().catch(()=>{});
+  else if(k==='sumApply'){st.sf={from:$('#sFrom').value,to:$('#sTo').value,districts:multiSel('sDis'),dists:multiSel('sDist')};
+    if(!st.sf.from||!st.sf.to||st.sf.from>st.sf.to){toast('Please choose a valid period.');return}loadSummary().catch(()=>{})}
+  else if(k==='logout'){try{await call('dashLogout',token)}catch(x){}setToken(null);st.sum=null;st.meta=null;st.sf=null;render()}
 });
-document.addEventListener('change',e=>{if(e.target.dataset.a==='period'){st.period=e.target.value;render()}});
+document.addEventListener('change',e=>{if(e.target.dataset.a==='period'){st.period=e.target.value;render()}else if(e.target.closest('.mbox')&&!e.target.closest('#sheet'))mboxChange(e)});
 document.addEventListener('input',e=>{if(e.target.id==='q'){st.q=e.target.value;const pos=e.target.selectionStart;render();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)}});
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='loginForm')return;e.preventDefault();
